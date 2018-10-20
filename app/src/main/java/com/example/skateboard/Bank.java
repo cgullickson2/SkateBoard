@@ -6,28 +6,30 @@ import java.util.Map;
 
 public class Bank {
     private String name;
-    private Map<String, Double> memberAmounts;
+    private String key;
+    private Double amount;
+    private List<String> members;
 
-    public Bank(String name, String creatorId) {
+    public Bank(String name, String key, Double amount, List<String> members) {
         this.name = name;
-        this.memberAmounts.put(creatorId, 0.0);
+        this.key = key;
+        this.amount = amount;
+        this.members = members;
     }
 
     public String getName() {
         return name;
     }
 
-    public List<String> getMembers() {
-        List<String> list = new ArrayList<>();
-        list.addAll(memberAmounts.keySet());
-        return list;
+    public String getKey() {
+        return key;
     }
 
     public Double getAmount() {
-        Double total = 0.0;
-        for (Double amount : memberAmounts.values()) {
-            total += amount;
-        }
-        return total;
+        return amount;
+    }
+
+    public List<String> getMembers() {
+        return members;
     }
 }

@@ -15,9 +15,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        User user = databaseRepository.createUser("Jayden", "Bro", "jayden's email");
-        Log.d("USER FIRST NAME", user.getFirstName());
+        databaseRepository.createUser("Jayden", "Lee", "jayden's email");
+        databaseRepository.createUser("Jason", "Gully", "jason em");
+
+        User user = databaseRepository.getUser();
 
         databaseRepository.updateCreditCard(user.getKey(), "new credit card #");
+        databaseRepository.createBank("newBank", user.getKey());
     }
 }
