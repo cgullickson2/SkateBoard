@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "112458495672",
+    "firebase_url": "https://skateboard-95908.firebaseio.com",
+    "project_id": "skateboard-95908",
+    "storage_bucket": "skateboard-95908.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112458495672:android:28488f0a78af734e",
+        "android_client_info": {
+          "package_name": "com.example.skateboard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "112458495672-qjv5892bvnd8ofuvo8bd7ja91s2bv44o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCn3ePES_Y7qpvi-Qu46CVDfmnIntPa2Uc"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
