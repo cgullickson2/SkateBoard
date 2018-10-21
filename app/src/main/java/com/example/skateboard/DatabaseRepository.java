@@ -1,7 +1,10 @@
 package com.example.skateboard;
 
+import android.databinding.ObservableArrayList;
 import android.databinding.ObservableField;
+import android.os.Build;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -9,15 +12,19 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 public class DatabaseRepository {
     private FirebaseDatabase database = FirebaseDatabase.getInstance();
@@ -26,6 +33,7 @@ public class DatabaseRepository {
     private FirebaseAuth auth = FirebaseAuth.getInstance();
 
     private ObservableField<User> user = new ObservableField<User>();
+    ObservableArrayList<Bank> bankList = new ObservableArrayList<>();
 
     private ObservableField<String> error = new ObservableField<String>();
 
@@ -34,7 +42,7 @@ public class DatabaseRepository {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 if (auth.getUid() != null) {
-                    database.getReference("users/" + firebaseAuth.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
+                    database.getReference("users/"+auth.getUid()).addValueEventListener(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                             String first = dataSnapshot.child("firstName").getValue(String.class);
@@ -42,11 +50,6 @@ public class DatabaseRepository {
                             String email = dataSnapshot.child("email").getValue(String.class);
                             String creditCardNumber = dataSnapshot.child("creditCardNumber").getValue(String.class);
                             String balance = dataSnapshot.child("balance").getValue(String.class);
-                            HashMap<String, String> banks = (HashMap<String, String>) dataSnapshot.child("banks").getValue();
-                            Collection<String> bankList = null;
-                            if (banks != null) {
-                                bankList = banks.values();
-                            }
 
                             user.set(new User(
                                     first,
@@ -62,6 +65,59 @@ public class DatabaseRepository {
                         @Override
                         public void onCancelled(@NonNull DatabaseError databaseError) {
                             error.set(databaseError.getMessage());
+                        }
+                    });
+                    database.getReference("users/"+auth.getUid()+"/banks").addChildEventListener(new ChildEventListener() {
+                        @Override
+                        public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                            String bankKey = dataSnapshot.getValue(String.class);
+                            DatabaseReference ref = banksRef.child(bankKey);
+                            ref.addValueEventListener(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                    HashMap<String, Object> obj = (HashMap<String, Object>) dataSnapshot.getValue();
+                                    Collection<String> memberKeys = ((HashMap<String, String>) obj.get("members")).values();
+                                    ArrayList<String> members = new ArrayList<>(memberKeys);
+                                    final Bank bank = new Bank(
+                                            (String) obj.get("name"),
+                                            dataSnapshot.getKey(),
+                                            Double.parseDouble((String) obj.get("amount")),
+                                            members
+                                    );
+                                    for (int i=0; i<bankList.size(); i++) {
+                                        if (bankList.get(i).getKey().equals(bank.getKey())) {
+                                            bankList.set(i, bank);
+                                            return;
+                                        }
+                                    }
+                                    bankList.add(bank);
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+                        }
+
+                        @Override
+                        public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+
+                        }
+
+                        @Override
+                        public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+
                         }
                     });
                 }
@@ -194,18 +250,24 @@ public class DatabaseRepository {
         });
     }
 
-    public void giveMoneyToBank(final Double amount, final String bankKey) {
+    /**
+     * Give a certain amount of money to the bank from your account.
+     *
+     * @param amount The amount to give.
+     * @param bankKey The unique key associated with the bank you want to put money into.
+     */
+    public void addFundsToBank(final Double amount, final String bankKey) {
         if (auth.getUid() == null || user.get() == null) {
             error.set("There is no user logged in!");
             return;
         }
 
         if (user.get().getBalance() >= amount) {
-            Double newBalance = user.get().getBalance() - amount;
-            usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
             banksRef.child(bankKey).child("amount").addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    Double newBalance = user.get().getBalance() - amount;
+                    usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
                     String bankAmount = dataSnapshot.getValue(String.class);
                     Double newBankAmount = amount + Double.parseDouble(bankAmount);
                     banksRef.child(bankKey).child("amount").setValue(newBankAmount.toString());
@@ -222,13 +284,38 @@ public class DatabaseRepository {
         }
     }
 
-    public void addMoneyToAccount(Double amount) {
+    /**
+     * Give a certain amount of money to the bank from your account.
+     *
+     * @param amount The amount to give.
+     * @param bankKey The unique key associated with the bank you want to put money into.
+     */
+    public void subtractFundsFromBank(final Double amount, final String bankKey) {
         if (auth.getUid() == null || user.get() == null) {
-            error.set("No user is logged in!");
+            error.set("There is no user logged in!");
+            return;
         }
 
-        Double newBalance = user.get().getBalance() + amount;
-        usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
+        if (user.get().getBalance() >= amount) {
+            banksRef.child(bankKey).child("amount").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    Double newBalance = user.get().getBalance() + amount;
+                    usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
+                    String bankAmount = dataSnapshot.getValue(String.class);
+                    Double newBankAmount = Double.parseDouble(bankAmount) - amount;
+                    banksRef.child(bankKey).child("amount").setValue(newBankAmount.toString());
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("ERROR", "cancelled.");
+                }
+            });
+        } else {
+            error.set("Not enough funds in your account.");
+            return;
+        }
     }
 
     public ObservableField<User> getUser() {

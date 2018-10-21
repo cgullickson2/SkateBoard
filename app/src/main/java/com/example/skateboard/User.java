@@ -1,5 +1,8 @@
 package com.example.skateboard;
 
+import android.databinding.ObservableArrayList;
+import android.databinding.ObservableField;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -10,10 +13,10 @@ public class User {
     private String creditCardNumber;
     private String key;
     private Double balance;
-    private Collection<String> banks;
+    private ObservableArrayList<Bank> banks;
 
     public User(String firstName, String lastName, String email, String key,
-                String creditCardNumber, Double balance, Collection<String> banks) {
+                String creditCardNumber, Double balance, ObservableArrayList<Bank> banks) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
@@ -39,7 +42,7 @@ public class User {
         return creditCardNumber;
     }
 
-    public Collection<String> getBanks() {
+    public ObservableArrayList<Bank> getBanks() {
         return banks;
     }
 
