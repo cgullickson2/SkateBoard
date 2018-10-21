@@ -23,12 +23,7 @@ import java.util.Timer;
 
 public class MainActivity extends AppCompatActivity {
 
-    DatabaseRepository databaseRepository;
-    private ObservableField<User> user = new ObservableField<>();
-
-    public DatabaseRepository getDatabaseRepository() {
-        return databaseRepository;
-    }
+    DatabaseRepository databaseRepository = new DatabaseRepository();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,14 +36,9 @@ public class MainActivity extends AppCompatActivity {
         final MyAdapter adapter = new MyAdapter(databaseRepository.bankList, databaseRepository);
         rv.setAdapter(adapter);
 
-        getIntent().getSerializableExtra("DATABASE");
+        String email = getIntent().getStringExtra("EMAIL");
+        String password = getIntent().getStringExtra("PASSWORD");
 
-//        FragmentManager fragmentManager = getSupportFragmentManager();
-//        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-//        home fragment = new home();
-//        fragmentTransaction.add(R.id.textView, fragment);
-//        fragmentTransaction.commit();
-
-        databaseRepository.signIn("gruen065@umn.edu", "redwire15");
+        databaseRepository.signIn(email, password);
     }
 }

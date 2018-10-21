@@ -30,6 +30,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,12 +46,14 @@ import static android.Manifest.permission.READ_CONTACTS;
  */
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
 
+    private String email;
+    private String password;
+    private Snackbar snack;
+
     /**
      * Id to identity READ_CONTACTS permission request.
      */
     private static final int REQUEST_READ_CONTACTS = 0;
-
-    private DatabaseRepository databaseRepository = new DatabaseRepository();
 
     /**
      * A dummy authentication store containing known user names and passwords.
@@ -95,6 +103,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        snack = Snackbar.make(mLoginFormView, "Incorrect username or password", Snackbar.LENGTH_LONG);
+        snack.getView().setBackgroundColor(getResources().getColor(R.color.colorError));
     }
 
     private void populateAutoComplete() {
@@ -156,8 +167,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mPasswordView.setError(null);
 
         // Store values at the time of the login attempt.
-        String email = mEmailView.getText().toString();
-        String password = mPasswordView.getText().toString();
+        email = mEmailView.getText().toString();
+        password = mPasswordView.getText().toString();
 
         boolean cancel = false;
         View focusView = null;
@@ -311,13 +322,6 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         protected Boolean doInBackground(Void... params) {
             // TODO: attempt authentication against a network service.
 
-            try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
-
             for (String credential : DUMMY_CREDENTIALS) {
                 String[] pieces = credential.split(":");
                 if (pieces[0].equals(mEmail)) {
@@ -335,15 +339,25 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             mAuthTask = null;
             showProgress(false);
 
-            if (success) {
-                Intent intent = new Intent("com.example.skateboard.MainActivity");
-                intent.putExtra("DATABASE", databaseRepository);
-                finish();
-                startActivity(intent);
-            } else {
-                mPasswordView.setError(getString(R.string.error_incorrect_password));
-                mPasswordView.requestFocus();
-            }
+            final FirebaseAuth auth = FirebaseAuth.getInstance();
+            auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                @Override
+                public void onComplete(@NonNull Task<AuthResult> task) {
+                    if (success && task.isSuccessful()) {
+                        auth.signOut();
+                        Intent intent = new Intent("com.example.skateboard.MainActivity");
+                        intent.putExtra("EMAIL", email);
+                        intent.putExtra("PASSWORD", password);
+                        finish();
+                        startActivity(intent);
+                    } else if (task.isSuccessful()) {
+                        mPasswordView.setError(getString(R.string.error_incorrect_password));
+                        mPasswordView.requestFocus();
+                    } else {
+                        snack.show();
+                    }
+                }
+            });
         }
 
         @Override
