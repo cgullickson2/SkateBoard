@@ -19,6 +19,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-public class DatabaseRepository {
+public class DatabaseRepository implements Serializable{
     private FirebaseDatabase database = FirebaseDatabase.getInstance();
     private DatabaseReference banksRef = database.getReference("banks");
     private DatabaseReference usersRef = database.getReference("users");

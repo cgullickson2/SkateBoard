@@ -45,6 +45,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
      */
     private static final int REQUEST_READ_CONTACTS = 0;
 
+    private DatabaseRepository databaseRepository = new DatabaseRepository();
+
     /**
      * A dummy authentication store containing known user names and passwords.
      * TODO: remove after connecting to a real authentication system.
@@ -145,9 +147,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
      * errors are presented and no actual login attempt is made.
      */
     private void attemptLogin() {
-        if (mAuthTask != null) {
-            return;
-        }
+       if(mAuthTask != null) {
+           return;
+       }
 
         // Reset errors.
         mEmailView.setError(null);
@@ -335,6 +337,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
             if (success) {
                 Intent intent = new Intent("com.example.skateboard.MainActivity");
+                intent.putExtra("DATABASE", databaseRepository);
                 finish();
                 startActivity(intent);
             } else {

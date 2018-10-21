@@ -23,7 +23,7 @@ import java.util.Timer;
 
 public class MainActivity extends AppCompatActivity {
 
-    DatabaseRepository databaseRepository = new DatabaseRepository();
+    DatabaseRepository databaseRepository;
     private ObservableField<User> user = new ObservableField<>();
 
     public DatabaseRepository getDatabaseRepository() {
@@ -40,6 +40,8 @@ public class MainActivity extends AppCompatActivity {
         rv.setLayoutManager(new LinearLayoutManager(this));
         final MyAdapter adapter = new MyAdapter(databaseRepository.bankList, databaseRepository);
         rv.setAdapter(adapter);
+
+        getIntent().getSerializableExtra("DATABASE");
 
 //        FragmentManager fragmentManager = getSupportFragmentManager();
 //        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
