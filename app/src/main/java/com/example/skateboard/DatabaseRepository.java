@@ -33,36 +33,38 @@ public class DatabaseRepository {
         auth.addAuthStateListener(new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                database.getReference("users/"+firebaseAuth.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        String first = dataSnapshot.child("firstName").getValue(String.class);
-                        String last = dataSnapshot.child("lastName").getValue(String.class);
-                        String email = dataSnapshot.child("email").getValue(String.class);
-                        String creditCardNumber = dataSnapshot.child("creditCardNumber").getValue(String.class);
-                        String balance = dataSnapshot.child("balance").getValue(String.class);
-                        HashMap<String, String> banks = (HashMap<String, String>) dataSnapshot.child("banks").getValue();
-                        Collection<String> bankList = null;
-                        if (banks != null) {
-                            bankList = banks.values();
+                if (auth.getUid() != null) {
+                    database.getReference("users/" + firebaseAuth.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                            String first = dataSnapshot.child("firstName").getValue(String.class);
+                            String last = dataSnapshot.child("lastName").getValue(String.class);
+                            String email = dataSnapshot.child("email").getValue(String.class);
+                            String creditCardNumber = dataSnapshot.child("creditCardNumber").getValue(String.class);
+                            String balance = dataSnapshot.child("balance").getValue(String.class);
+                            HashMap<String, String> banks = (HashMap<String, String>) dataSnapshot.child("banks").getValue();
+                            Collection<String> bankList = null;
+                            if (banks != null) {
+                                bankList = banks.values();
+                            }
+
+                            user.set(new User(
+                                    first,
+                                    last,
+                                    email,
+                                    auth.getUid(),
+                                    creditCardNumber,
+                                    Double.parseDouble(balance),
+                                    bankList
+                            ));
                         }
 
-                        user.set(new User(
-                                first,
-                                last,
-                                email,
-                                auth.getUid(),
-                                creditCardNumber,
-                                Double.parseDouble(balance),
-                                bankList
-                        ));
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError databaseError) {
-                        error.set(databaseError.getMessage());
-                    }
-                });
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+                            error.set(databaseError.getMessage());
+                        }
+                    });
+                }
             }
         });
     }
@@ -211,13 +213,22 @@ public class DatabaseRepository {
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
-                    Log.e("ERROR", "cancelled.")
+                    Log.e("ERROR", "cancelled.");
                 }
             });
         } else {
             error.set("Not enough funds in your account.");
             return;
         }
+    }
+
+    public void addMoneyToAccount(Double amount) {
+        if (auth.getUid() == null || user.get() == null) {
+            error.set("No user is logged in!");
+        }
+
+        Double newBalance = user.get().getBalance() + amount;
+        usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
     }
 
     public ObservableField<User> getUser() {

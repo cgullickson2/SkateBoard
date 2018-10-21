@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Skateboard</string>
+    <string name="log_in">Please log in!</string>
 </resources>
