@@ -2,6 +2,7 @@ package com.example.skateboard;
 
 import android.databinding.ObservableField;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -13,6 +14,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,7 +25,7 @@ public class DatabaseRepository {
     private DatabaseReference usersRef = database.getReference("users");
     private FirebaseAuth auth = FirebaseAuth.getInstance();
 
-    private User user;
+    private ObservableField<User> user = new ObservableField<User>();
 
     private ObservableField<String> error = new ObservableField<String>();
 
@@ -30,24 +33,29 @@ public class DatabaseRepository {
         auth.addAuthStateListener(new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                database.getReference("users/"+firebaseAuth.getUid()).addValueEventListener(new ValueEventListener() {
+                database.getReference("users/"+firebaseAuth.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                         String first = dataSnapshot.child("firstName").getValue(String.class);
                         String last = dataSnapshot.child("lastName").getValue(String.class);
                         String email = dataSnapshot.child("email").getValue(String.class);
                         String creditCardNumber = dataSnapshot.child("creditCardNumber").getValue(String.class);
+                        String balance = dataSnapshot.child("balance").getValue(String.class);
                         HashMap<String, String> banks = (HashMap<String, String>) dataSnapshot.child("banks").getValue();
+                        Collection<String> bankList = null;
+                        if (banks != null) {
+                            bankList = banks.values();
+                        }
 
-                        user = new User(
+                        user.set(new User(
                                 first,
                                 last,
                                 email,
                                 auth.getUid(),
                                 creditCardNumber,
-                                banks.values()
-                        );
-                        user.getBanks();
+                                Double.parseDouble(balance),
+                                bankList
+                        ));
                     }
 
                     @Override
@@ -75,6 +83,7 @@ public class DatabaseRepository {
                     userObj.put("firstName", first);
                     userObj.put("lastName", last);
                     userObj.put("email", email);
+                    userObj.put("balance", "10.0");
                     FirebaseUser u = auth.getCurrentUser();
                     DatabaseReference userRef = usersRef.child(u.getUid());
                     userRef.setValue(userObj);
@@ -128,7 +137,7 @@ public class DatabaseRepository {
      * @param bankName The name of the piggy bank to create.
      */
     public void createBank(String bankName) {
-        if (auth.getCurrentUser() == null) {
+        if (auth.getUid() == null) {
             error.set("User is not signed in yet, please wait.");
             return;
         }
@@ -158,6 +167,12 @@ public class DatabaseRepository {
         usersRef.child(auth.getUid()).child("banks").push().setValue(bankKey);
     }
 
+    /**
+     * Invites a user to a bank, given the bank ID and the email of the user.
+     *
+     * @param targetEmail The user's email.
+     * @param bankKey The key of the bank.
+     */
     public void inviteUserByEmail(String targetEmail, final String bankKey) {
         database.getReference("emailToUid").child(targetEmail.replace('.', ':')).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -177,7 +192,35 @@ public class DatabaseRepository {
         });
     }
 
-    public User getUser() {
+    public void giveMoneyToBank(final Double amount, final String bankKey) {
+        if (auth.getUid() == null || user.get() == null) {
+            error.set("There is no user logged in!");
+            return;
+        }
+
+        if (user.get().getBalance() >= amount) {
+            Double newBalance = user.get().getBalance() - amount;
+            usersRef.child(auth.getUid()).child("balance").setValue(newBalance.toString());
+            banksRef.child(bankKey).child("amount").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    String bankAmount = dataSnapshot.getValue(String.class);
+                    Double newBankAmount = amount + Double.parseDouble(bankAmount);
+                    banksRef.child(bankKey).child("amount").setValue(newBankAmount.toString());
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("ERROR", "cancelled.")
+                }
+            });
+        } else {
+            error.set("Not enough funds in your account.");
+            return;
+        }
+    }
+
+    public ObservableField<User> getUser() {
         return user;
     }
 }

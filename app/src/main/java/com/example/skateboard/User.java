@@ -9,15 +9,17 @@ public class User {
     private String email;
     private String creditCardNumber;
     private String key;
+    private Double balance;
     private Collection<String> banks;
 
     public User(String firstName, String lastName, String email, String key,
-                String creditCardNumber, Collection<String> banks) {
+                String creditCardNumber, Double balance, Collection<String> banks) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.creditCardNumber = creditCardNumber;
         this.banks = banks;
+        this.balance = balance;
         this.key = key;
     }
 
@@ -43,6 +45,10 @@ public class User {
 
     public String getKey() {
         return key;
+    }
+
+    public Double getBalance() {
+        return balance;
     }
 
     public void setKey(String key) {
