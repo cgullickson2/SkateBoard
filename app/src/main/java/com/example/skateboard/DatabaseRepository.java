@@ -1,7 +1,7 @@
 package com.example.skateboard;
 
+import android.databinding.ObservableField;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -13,7 +13,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,6 +23,41 @@ public class DatabaseRepository {
     private FirebaseAuth auth = FirebaseAuth.getInstance();
 
     private User user;
+
+    private ObservableField<String> error = new ObservableField<String>();
+
+    public DatabaseRepository() {
+        auth.addAuthStateListener(new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                database.getReference("users/"+firebaseAuth.getUid()).addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                        String first = dataSnapshot.child("firstName").getValue(String.class);
+                        String last = dataSnapshot.child("lastName").getValue(String.class);
+                        String email = dataSnapshot.child("email").getValue(String.class);
+                        String creditCardNumber = dataSnapshot.child("creditCardNumber").getValue(String.class);
+                        HashMap<String, String> banks = (HashMap<String, String>) dataSnapshot.child("banks").getValue();
+
+                        user = new User(
+                                first,
+                                last,
+                                email,
+                                auth.getUid(),
+                                creditCardNumber,
+                                banks.values()
+                        );
+                        user.getBanks();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+                        error.set(databaseError.getMessage());
+                    }
+                });
+            }
+        });
+    }
 
     /**
      * Creates a user. Must have a first name, last name, and valid email.
@@ -44,16 +78,9 @@ public class DatabaseRepository {
                     FirebaseUser u = auth.getCurrentUser();
                     DatabaseReference userRef = usersRef.child(u.getUid());
                     userRef.setValue(userObj);
-                    user = new User(
-                            first,
-                            last,
-                            email,
-                            u.getUid(),
-                            null,
-                            null
-                    );
+                    database.getReference("emailToUid/"+email.replace('.', ':')).setValue(u.getUid());
                 } else {
-                    Log.e("ERROR", "Couldn't authenticate user!");
+                    error.set("Error creating account!");
                 }
             }
         });
@@ -69,26 +96,16 @@ public class DatabaseRepository {
         auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
-                if (task.isSuccessful()) {
-                    DatabaseReference userRef = usersRef.child(auth.getCurrentUser().getUid());
-                    userRef.addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError databaseError) {
-                            Log.e("ERROR", "Couldn't identify user in database!");
-                        }
-                    });
-                } else {
-                    Log.e("ERROR", "Couldn't sign in user!");
+                if (!task.isSuccessful()) {
+                    error.set("Couldn't sign in user!");
                 }
             }
         });
     }
 
+    /**
+     * Signs out the current user.
+     */
     public void signOut() {
         auth.signOut();
     }
@@ -109,29 +126,55 @@ public class DatabaseRepository {
      * Also associates the creator with the bank.
      *
      * @param bankName The name of the piggy bank to create.
-     * @param creatorKey The unique database key associated with the user who created this bank.
      */
-    public void createBank(String bankName, String creatorKey) {
+    public void createBank(String bankName) {
+        if (auth.getCurrentUser() == null) {
+            error.set("User is not signed in yet, please wait.");
+            return;
+        }
+
         Map<String, String> bankObj = new HashMap<>();
         bankObj.put("name", bankName);
 
         DatabaseReference bankRef = banksRef.push();
         bankRef.setValue(bankObj);
         bankRef.child("amount").setValue("0.00");
-        bankRef.child("members").push().setValue(creatorKey);
+        bankRef.child("members").push().setValue(auth.getUid());
 
-        usersRef.child(creatorKey).child("banks").push().setValue(bankRef.getKey());
+        usersRef.child(auth.getUid()).child("banks").push().setValue(bankRef.getKey());
     }
 
     /**
      * Associates a user with a bank.
      *
-     * @param userKey The unique database key associated with the user.
      * @param bankKey The unique database key associated with the bank.
      */
-    public void addUserToBank(String userKey, String bankKey) {
-        banksRef.child(bankKey).child("members").push().setValue(userKey);
-        usersRef.child(userKey).child("banks").push().setValue(bankKey);
+    public void addUserToBank(String bankKey) {
+        if (auth.getUid() == null) {
+            error.set("No user is signed in!");
+            return;
+        }
+        banksRef.child(bankKey).child("members").push().setValue(auth.getUid());
+        usersRef.child(auth.getUid()).child("banks").push().setValue(bankKey);
+    }
+
+    public void inviteUserByEmail(String targetEmail, final String bankKey) {
+        database.getReference("emailToUid").child(targetEmail.replace('.', ':')).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                String uid = dataSnapshot.getValue(String.class);
+                if (uid == null) {
+                    error.set("That email is not associated with a user ID.");
+                    return;
+                }
+                usersRef.child(uid).child("invites").push().setValue(bankKey);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                error.set("Couldn't find uid for that email!");
+            }
+        });
     }
 
     public User getUser() {

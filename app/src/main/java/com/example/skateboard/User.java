@@ -1,6 +1,7 @@
 package com.example.skateboard;
 
 import java.util.ArrayList;
+import java.util.Collection;
 
 public class User {
     private String firstName;
@@ -8,10 +9,10 @@ public class User {
     private String email;
     private String creditCardNumber;
     private String key;
-    private ArrayList<String> banks;
+    private Collection<String> banks;
 
     public User(String firstName, String lastName, String email, String key,
-                String creditCardNumber, ArrayList<String> banks) {
+                String creditCardNumber, Collection<String> banks) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
@@ -36,7 +37,7 @@ public class User {
         return creditCardNumber;
     }
 
-    public ArrayList<String> getBanks() {
+    public Collection<String> getBanks() {
         return banks;
     }
 
